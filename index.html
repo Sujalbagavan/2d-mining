@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mining Fortune - Crash Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0f0f23, #1a1a2e, #16213e);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #000000, #1a1a2e);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #ffd700;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .header h1 {
+            font-size: 2.8em;
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .balance-display {
+            font-size: 1.8em;
+            color: #4CAF50;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .game-container {
+            display: flex;
+            gap: 25px;
+            padding: 25px;
+            max-width: 1600px;
+            margin: 0 auto;
+            min-height: calc(100vh - 120px);
+        }
+
+        .mining-area {
+            flex: 2.5;
+            background: linear-gradient(145deg, rgba(0, 0, 0, 0.8), rgba(26, 26, 46, 0.9));
+            border-radius: 20px;
+            padding: 25px;
+            border: 2px solid #ffd700;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 215, 0, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .depth-info {
+            font-size: 1.3em;
+            color: #ffd700;
+        }
+
+        .danger-level {
+            font-size: 1.1em;
+            color: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(25, 20px);
+            gap: 1px;
+            margin: 20px auto;
+            background: #000;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: fit-content;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
+
+        .block {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            border: 1px solid #333;
+            border-radius: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        .block:hover:not(.mined):not(.bomb) {
+            transform: scale(1.2);
+            border-color: #ffd700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+            z-index: 10;
+        }
+
+        .block.mined {
+            cursor: default;
+            border-color: #444;
+        }
+
+        .block.bomb {
+            background: #ff2d2d !important;
+            color: white;
+            cursor: default;
+            animation: explode 0.8s ease-out;
+            box-shadow: 0 0 20px #ff2d2d;
+        }
+
+        @keyframes explode {
+            0% { transform: scale(1); background: #ff2d2d; }
+            50% { transform: scale(1.5); background: #ff6b6b; }
+            100% { transform: scale(1.2); background: #ff2d2d; }
+        }
+
+        /* Depth-based block types */
+        .surface { background: #8FBC8F; } /* Light green surface */
+        .shallow { background: #8B4513; } /* Brown dirt */
+        .medium { background: #696969; } /* Gray stone */
+        .deep { background: #2F4F4F; } /* Dark slate */
+        .verydeep { background: #1C1C1C; } /* Almost black bedrock */
+
+        /* Ore types with glowing effects */
+        .coal { 
+            background: #36454F !important; 
+            box-shadow: 0 0 8px #36454F;
+            color: white;
+        }
+        .iron { 
+            background: #C0C0C0 !important; 
+            box-shadow: 0 0 10px #C0C0C0;
+            color: #333;
+        }
+        .copper { 
+            background: #B87333 !important; 
+            box-shadow: 0 0 10px #B87333;
+            color: white;
+        }
+        .silver { 
+            background: #E5E5E5 !important; 
+            box-shadow: 0 0 12px #E5E5E5;
+            color: #333;
+        }
+        .gold { 
+            background: #FFD700 !important; 
+            box-shadow: 0 0 15px #FFD700;
+            color: #333;
+            animation: goldGlow 2s infinite alternate;
+        }
+        .platinum { 
+            background: #E5E4E2 !important; 
+            box-shadow: 0 0 15px #E5E4E2;
+            color: #333;
+        }
+        .diamond { 
+            background: #B9F2FF !important; 
+            box-shadow: 0 0 20px #B9F2FF;
+            color: #003d5c;
+            animation: diamondSparkle 1.5s infinite;
+        }
+        .emerald { 
+            background: #50C878 !important; 
+            box-shadow: 0 0 20px #50C878;
+            color: white;
+            animation: emeraldGlow 2s infinite alternate;
+        }
+        .ruby { 
+            background: #E0115F !important; 
+            box-shadow: 0 0 25px #E0115F;
+            color: white;
+            animation: rubyPulse 1s infinite;
+        }
+
+        @keyframes goldGlow {
+            0% { box-shadow: 0 0 15px #FFD700; }
+            100% { box-shadow: 0 0 25px #FFD700, 0 0 35px rgba(255, 215, 0, 0.3); }
+        }
+
+        @keyframes diamondSparkle {
+            0%, 100% { box-shadow: 0 0 20px #B9F2FF; }
+            50% { box-shadow: 0 0 30px #B9F2FF, 0 0 40px rgba(185, 242, 255, 0.5); }
+        }
+
+        @keyframes emeraldGlow {
+            0% { box-shadow: 0 0 20px #50C878; }
+            100% { box-shadow: 0 0 30px #50C878, 0 0 40px rgba(80, 200, 120, 0.4); }
+        }
+
+        @keyframes rubyPulse {
+            0%, 100% { box-shadow: 0 0 25px #E0115F; transform: scale(1); }
+            50% { box-shadow: 0 0 35px #E0115F, 0 0 45px rgba(224, 17, 95, 0.6); transform: scale(1.1); }
+        }
+
+        .control-panel {
+            flex: 1;
+            background: linear-gradient(145deg, rgba(0, 0, 0, 0.8), rgba(26, 26, 46, 0.9));
+            border-radius: 20px;
+            padding: 25px;
+            border: 2px solid #ffd700;
+            height: fit-content;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .bet-section {
+            margin-bottom: 25px;
+        }
+
+        .bet-section h3 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            text-align: center;
+        }
+
+        .bet-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.3em;
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-align: center;
+            margin-bottom: 15px;
+            backdrop-filter: blur(5px);
+        }
+
+        .bet-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .bet-btn {
+            padding: 10px;
+            background: rgba(255, 215, 0, 0.15);
+            border: 1px solid #ffd700;
+            color: #ffd700;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .bet-btn:hover {
+            background: rgba(255, 215, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .main-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 1.4em;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+
+        .cashout-btn {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4);
+            animation: cashoutPulse 2s infinite;
+        }
+
+        @keyframes cashoutPulse {
+            0%, 100% { box-shadow: 0 4px 15px rgba(255, 152, 0, 0.4); }
+            50% { box-shadow: 0 6px 25px rgba(255, 152, 0, 0.8); }
+        }
+
+        .main-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .main-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            animation: none;
+        }
+
+        .multiplier-display {
+            text-align: center;
+            font-size: 3.5em;
+            font-weight: bold;
+            color: #4CAF50;
+            margin: 25px 0;
+            text-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+            animation: multiplierGlow 2s infinite alternate;
+        }
+
+        @keyframes multiplierGlow {
+            0% { text-shadow: 0 0 20px rgba(76, 175, 80, 0.6); }
+            100% { text-shadow: 0 0 30px rgba(76, 175, 80, 0.9), 0 0 40px rgba(76, 175, 80, 0.3); }
+        }
+
+        .game-stats {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .ore-inventory {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .ore-inventory h4 {
+            color: #ffd700;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .ore-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+
+        .ore-item.coal { border-left-color: #36454F; }
+        .ore-item.iron { border-left-color: #C0C0C0; }
+        .ore-item.copper { border-left-color: #B87333; }
+        .ore-item.silver { border-left-color: #E5E5E5; }
+        .ore-item.gold { border-left-color: #FFD700; }
+        .ore-item.platinum { border-left-color: #E5E4E2; }
+        .ore-item.diamond { border-left-color: #B9F2FF; }
+        .ore-item.emerald { border-left-color: #50C878; }
+        .ore-item.ruby { border-left-color: #E0115F; }
+
+        .game-result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .win-result {
+            background: linear-gradient(45deg, rgba(76, 175, 80, 0.2), rgba(69, 160, 73, 0.3));
+            border: 2px solid #4CAF50;
+            color: #4CAF50;
+        }
+
+        .lose-result {
+            background: linear-gradient(45deg, rgba(244, 67, 54, 0.2), rgba(229, 57, 53, 0.3));
+            border: 2px solid #f44336;
+            color: #f44336;
+        }
+
+        .notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: bold;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.4s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .notification.error {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .notification.info {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1200px) {
+            .game-container {
+                flex-direction: column;
+            }
+            
+            .grid {
+                grid-template-columns: repeat(25, 15px);
+            }
+            
+            .block {
+                width: 15px;
+                height: 15px;
+                font-size: 8px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: repeat(25, 12px);
+                padding: 10px;
+            }
+            
+            .block {
+                width: 12px;
+                height: 12px;
+                font-size: 6px;
+            }
+            
+            .multiplier-display {
+                font-size: 2.5em;
+            }
+            
+            .bet-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .balance-display {
+                font-size: 1.4em;
+            }
+            
+            .grid {
+                grid-template-columns: repeat(25, 10px);
+                padding: 8px;
+            }
+            
+            .block {
+                width: 10px;
+                height: 10px;
+            }
+            
+            .game-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⛏️ MINING FORTUNE ⛏️</h1>
+        <div class="balance-display">💰 Balance: $<span id="balance">1000.00</span></div>
+    </div>
+
+    <div class="game-container">
+        <div class="mining-area">
+            <div class="game-info">
+                <div class="depth-info">
+                    🏔️ Mining Depth: <span id="depth-level">Level 1-5</span>
+                </div>
+                <div class="danger-level">
+                    ⚠️ Bombs Hidden: <span id="bomb-count">5</span>
+                </div>
+            </div>
+            
+            <div class="grid" id="mining-grid"></div>
+            
+            <div class="multiplier-display" id="multiplier">1.00x</div>
+            
+            <div id="game-result"></div>
+        </div>
+
+        <div class="control-panel">
+            <div class="bet-section">
+                <h3>💎 Place Your Bet</h3>
+                <input type="number" class="bet-input" id="bet-amount" placeholder="Enter bet amount" min="1" max="1000" value="10">
+                <div class="bet-buttons">
+                    <button class="bet-btn" onclick="setBet(1)">$1</button>
+                    <button class="bet-btn" onclick="setBet(5)">$5</button>
+                    <button class="bet-btn" onclick="setBet(10)">$10</button>
+                    <button class="bet-btn" onclick="setBet(25)">$25</button>
+                    <button class="bet-btn" onclick="setBet(50)">$50</button>
+                    <button class="bet-btn" onclick="setBet(100)">$100</button>
+                </div>
+                <button class="bet-btn" onclick="maxBet()" style="width: 100%; margin-top: 10px;">MAX BET</button>
+            </div>
+
+            <button class="main-btn start-btn" id="start-btn" onclick="startGame()">⛏️ Start Mining</button>
+            <button class="main-btn cashout-btn" id="cashout-btn" onclick="cashOut()" disabled>💰 Cash Out</button>
+
+            <div class="game-stats">
+                <div class="stat-row">
+                    <span>Current Bet:</span>
+                    <span class="stat-value">$<span id="current-bet">0.00</span></span>
+                </div>
+                <div class="stat-row">
+                    <span>Potential Win:</span>
+                    <span class="stat-value">$<span id="potential-win">0.00</span></span>
+                </div>
+                <div class="stat-row">
+                    <span>Blocks Mined:</span>
+                    <span class="stat-value" id="blocks-mined">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Ores Found:</span>
+                    <span class="stat-value" id="ores-found">0</span>
+                </div>
+                <div class="stat-row">
+                    <span>Games Played:</span>
+                    <span class="stat-value" id="games-played">0</span>
+                </div>
+            </div>
+
+            <div class="ore-inventory">
+                <h4>💎 Current Session Ores</h4>
+                <div class="ore-item coal">
+                    <span>⚫ Coal (1.2x)</span>
+                    <span id="coal-count">0</span>
+                </div>
+                <div class="ore-item iron">
+                    <span>⚪ Iron (1.5x)</span>
+                    <span id="iron-count">0</span>
+                </div>
+                <div class="ore-item copper">
+                    <span>🟤 Copper (2x)</span>
+                    <span id="copper-count">0</span>
+                </div>
+                <div class="ore-item silver">
+                    <span>⚪ Silver (3x)</span>
+                    <span id="silver-count">0</span>
+                </div>
+                <div class="ore-item gold">
+                    <span>🟡 Gold (5x)</span>
+                    <span id="gold-count">0</span>
+                </div>
+                <div class="ore-item platinum">
+                    <span>⚪ Platinum (8x)</span>
+                    <span id="platinum-count">0</span>
+                </div>
+                <div class="ore-item diamond">
+                    <span>💎 Diamond (15x)</span>
+                    <span id="diamond-count">0</span>
+                </div>
+                <div class="ore-item emerald">
+                    <span>🟢 Emerald (25x)</span>
+                    <span id="emerald-count">0</span>
+                </div>
+                <div class="ore-item ruby">
+                    <span>🔴 Ruby (50x)</span>
+                    <span id="ruby-count">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        class MiningFortune {
+            constructor() {
+                this.gridWidth = 25;
+                this.gridHeight = 20;
+                this.balance = 1000;
+                this.currentBet = 0;
+                this.gameActive = false;
+                this.currentMultiplier = 1.0;
+                this.blocksMined = 0;
+                this.oresFound = 0;
+                this.gamesPlayed = 0;
+                this.grid = [];
+                this.bombPositions = [];
+                
+                this.oreTypes = {
+                    coal: { multiplier: 1.2, rarity: 0.15, minDepth: 0, emoji: '⚫' },
+                    iron: { multiplier: 1.5, rarity: 0.12, minDepth: 3, emoji: '⚪' },
+                    copper: { multiplier: 2.0, rarity: 0.10, minDepth: 5, emoji: '🟤' },
+                    silver: { multiplier: 3.0, rarity: 0.08, minDepth: 8, emoji: '⚪' },
+                    gold: { multiplier: 5.0, rarity: 0.06, minDepth: 10, emoji: '🟡' },
+                    platinum: { multiplier: 8.0, rarity: 0.04, minDepth: 12, emoji: '⚪' },
+                    diamond: { multiplier: 15.0, rarity: 0.025, minDepth: 15, emoji: '💎' },
+                    emerald: { multiplier: 25.0, rarity: 0.015, minDepth: 17, emoji: '🟢' },
+                    ruby: { multiplier: 50.0, rarity: 0.008, minDepth: 18, emoji: '🔴' }
+                };
+
+                this.sessionOres = {
+                    coal: 0, iron: 0, copper: 0, silver: 0, gold: 0,
+                    platinum: 0, diamond: 0, emerald: 0, ruby: 0
+                };
+                
+                this.updateUI();
+                this.initializeGrid();
+            }
+
+            initializeGrid() {
+                this.grid = [];
+                this.bombPositions = [];
+                
+                for (let y = 0; y < this.gridHeight; y++) {
+                    this.grid[y] = [];
+                    for (let x = 0; x < this.gridWidth; x++) {
+                        this.grid[y][x] = {
+                            type: this.getBlockType(y),
+                            mined: false,
+                            isBomb: false,
+                            ore: null,
+                            depth: y
+                        };
+                    }
+                }
+                
+                this.renderGrid();
+            }
+
+            getBlockType(depth) {
+                if (depth < 4) return 'surface';
+                if (depth < 8) return 'shallow';
+                if (depth < 12) return 'medium';
+                if (depth < 16) return 'deep';
+                return 'verydeep';
+            }
+
+            startGame() {
+                const betAmount = parseFloat(document.getElementById('bet-amount').value);
+                
+                if (!betAmount || betAmount <= 0) {
+                    this.showNotification('Please enter a valid bet amount!', 'error');
+                    return;
+                }
+                
+                if (betAmount > this.balance) {
+                    this.showNotification('Insufficient balance!', 'error');
+                    return;
+                }
+                
+                this.currentBet = betAmount;
+                this.balance -= betAmount;
+                this.gameActive = true;
+                this.currentMultiplier = 1.0;
+                this.blocksMined = 0;
+                this.oresFound = 0;
+                
+                // Reset session ores
+                for (const ore in this.sessionOres) {
+                    this.sessionOres[ore] = 0;
+                }
+                
+                this.generateGameLayout();
+                
+                document.getElementById('start-btn').disabled = true;
+                document.getElementById('cashout-btn').disabled = false;
+                document.getElementById('bet-amount').disabled = true;
+                
+                this.updateUI();
+                this.showNotification('Mining started! Find ores, avoid bombs!', 'info');
+            }
+
+            generateGameLayout() {
+                this.initializeGrid();
+                
+                // Place 5-8 bombs randomly
+                const bombCount = 5 + Math.floor(Math.random() * 4);
+                document.getElementById('bomb-count').textContent = bombCount;
+                
+                const positions = [];
+                for (let y = 0; y < this.gridHeight; y++) {
+                    for (let x = 0; x < this.gridWidth; x++) {
+                        positions.push({x, y});
+                    }
+                }
+                
+                // Shuffle positions
+                for (let i = positions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [positions[i], positions[j]] = [positions[j], positions[i]];
+                }
+                
+                // Place bombs
+                for (let i = 0; i < bombCount; i++) {
+                    const {x, y} = positions[i];
+                    this.grid[y][x].isBomb = true;
+                    this.bombPositions.push({x, y});
+                }
+                
+                // Place ores in remaining positions
+                for (let i = bombCount; i < positions.length; i++) {
+                    const {x, y} = positions[i];
+                    const depth = y;
+                    
+                    // Check each ore type
+                    for (const [oreType, config] of Object.entries(this.oreTypes)) {
+                        if (depth >= config.minDepth && Math.random() < config.rarity) {
+                            this.grid[y][x].ore = oreType;
+                            break; // Only one ore per block
+                        }
+                    }
+                }
+            }
+
+            mineBlock(x, y) {
+                if (!this.gameActive || this.grid[y][x].mined) return;
+                
+                const block = this.grid[y][x];
+                block.mined = true;
+                this.blocksMined++;
+                
+                if (block.isBomb) {
+                    this.gameOver(false);
+                    return;
+                }
+                
+                if (block.ore) {
+                    const oreConfig = this.oreTypes[block.ore];
+                    this.currentMultiplier *= oreConfig.multiplier;
+                    this.oresFound++;
+                    this.sessionOres[block.ore]++;
+                    
+                    this.showNotification(`Found ${block.ore.toUpperCase()}! ${oreConfig.multiplier}x multiplier!`, 'success');
+                } else {
+                    // Small bonus for mining regular blocks
+                    this.currentMultiplier += 0.02;
+                }
+                
+                this.updateUI();
+                this.renderGrid();
+                
+                // Check win condition (mined 80% of safe blocks)
+                const safeBlocks = this.gridWidth * this.gridHeight - this.bombPositions.length;
+                if (this.blocksMined >= Math.floor(safeBlocks * 0.8)) {
+                    this.gameOver(true);
+                }
+            }
+
+            cashOut() {
+                if (!this.gameActive) return;
+                
+                const winAmount = this.currentBet * this.currentMultiplier;
+                this.balance += winAmount;
+                this.gameActive = false;
+                this.gamesPlayed++;
+                
+                const resultDiv = document.getElementById('game-result');
+                resultDiv.innerHTML = `
+                    <div class="game-result win-result">
+                        <h2>🎉 SUCCESSFUL CASH OUT! 🎉</h2>
+                        <p>Bet: $${this.currentBet.toFixed(2)} × ${this.currentMultiplier.toFixed(2)} = $${winAmount.toFixed(2)}</p>
+                        <p>Blocks Mined: ${this.blocksMined} | Ores Found: ${this.oresFound}</p>
+                    </div>
+                `;
+                
+                this.showNotification(`Cashed out $${winAmount.toFixed(2)}!`, 'success');
+                setTimeout(() => this.resetGame(), 4000);
+            }
+
+            gameOver(isWin) {
+                this.gameActive = false;
+                this.gamesPlayed++;
+                
+                // Reveal all bombs
+                this.bombPositions.forEach(pos => {
+                    this.grid[pos.y][pos.x].mined = true;
+                });
+                
+                const resultDiv = document.getElementById('game-result');
+                
+                if (isWin) {
+                    const winAmount = this.currentBet * this.currentMultiplier;
+                    this.balance += winAmount;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="game-result win-result">
+                            <h2>🏆 MINING COMPLETE! 🏆</h2>
+                            <p>Amazing! You cleared most of the mine!</p>
+                            <p>Won: $${winAmount.toFixed(2)} (${this.currentMultiplier.toFixed(2)}x)</p>
+                            <p>Blocks Mined: ${this.blocksMined} | Ores Found: ${this.oresFound}</p>
+                        </div>
+                    `;
+                    
+                    this.showNotification(`Mining complete! Won $${winAmount.toFixed(2)}!`, 'success');
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="game-result lose-result">
+                            <h2>💥 BOOM! YOU HIT A BOMB! 💥</h2>
+                            <p>You lost your bet of $${this.currentBet.toFixed(2)}</p>
+                            <p>Blocks Mined: ${this.blocksMined} | Ores Found: ${this.oresFound}</p>
+                        </div>
+                    `;
+                    
+                    this.showNotification('You hit a bomb! Game over!', 'error');
+                }
+                
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('cashout-btn').disabled = true;
+                document.getElementById('bet-amount').disabled = false;
+                
+                this.renderGrid();
+                this.updateUI();
+                
+                setTimeout(() => {
+                    resultDiv.innerHTML = '';
+                    this.initializeGrid();
+                }, 4000);
+            }
+
+            resetGame() {
+                this.gameActive = false;
+                this.currentBet = 0;
+                this.currentMultiplier = 1.0;
+                
+                document.getElementById('start-btn').disabled = false;
+                document.getElementById('cashout-btn').disabled = true;
+                document.getElementById('bet-amount').disabled = false;
+                
+                this.initializeGrid();
+                this.updateUI();
+                document.getElementById('game-result').innerHTML = '';
+            }
+
+            updateUI() {
+                document.getElementById('balance').textContent = this.balance.toFixed(2);
+                document.getElementById('current-bet').textContent = this.currentBet.toFixed(2);
+                document.getElementById('potential-win').textContent = (this.currentBet * this.currentMultiplier).toFixed(2);
+                document.getElementById('multiplier').textContent = this.currentMultiplier.toFixed(2) + 'x';
+                document.getElementById('blocks-mined').textContent = this.blocksMined;
+                document.getElementById('ores-found').textContent = this.oresFound;
+                document.getElementById('games-played').textContent = this.gamesPlayed;
+                
+                // Update depth level display
+                const avgDepth = this.blocksMined > 0 ? 
+                    Math.floor(this.gridHeight * (this.blocksMined / (this.gridWidth * this.gridHeight))) : 0;
+                const depthRange = `${avgDepth * 5 + 1}-${avgDepth * 5 + 5}m`;
+                document.getElementById('depth-level').textContent = depthRange;
+                
+                // Update ore counts
+                for (const [ore, count] of Object.entries(this.sessionOres)) {
+                    document.getElementById(`${ore}-count`).textContent = count;
+                }
+            }
+
+            renderGrid() {
+                const gridElement = document.getElementById('mining-grid');
+                gridElement.innerHTML = '';
+                
+                for (let y = 0; y < this.gridHeight; y++) {
+                    for (let x = 0; x < this.gridWidth; x++) {
+                        const block = this.grid[y][x];
+                        const blockElement = document.createElement('div');
+                        blockElement.className = `block ${block.type} ${block.mined ? 'mined' : ''} ${block.isBomb && block.mined ? 'bomb' : ''} ${block.ore && block.mined ? block.ore : ''}`;
+                        
+                        if (block.mined) {
+                            if (block.isBomb) {
+                                blockElement.textContent = '💣';
+                            } else if (block.ore) {
+                                blockElement.textContent = this.oreTypes[block.ore].emoji;
+                            }
+                        }
+                        
+                        blockElement.addEventListener('click', () => this.mineBlock(x, y));
+                        gridElement.appendChild(blockElement);
+                    }
+                }
+            }
+
+            showNotification(message, type) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification ${type}`;
+                
+                notification.classList.add('show');
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            setBet(amount) {
+                document.getElementById('bet-amount').value = amount;
+            }
+
+            maxBet() {
+                document.getElementById('bet-amount').value = this.balance.toFixed(2);
+            }
+        }
+
+        // Initialize the game when the page loads
+        const game = new MiningFortune();
+
+        // Helper functions for button clicks
+        function startGame() {
+            game.startGame();
+        }
+
+        function cashOut() {
+            game.cashOut();
+        }
+
+        function setBet(amount) {
+            game.setBet(amount);
+        }
+
+        function maxBet() {
+            game.maxBet();
+        }
+
+        // Prevent form submission on Enter key
+        document.getElementById('bet-amount').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
